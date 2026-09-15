@@ -1,19 +1,132 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <title>Zoe's Portfolio</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      width: 100%;
+    }
+
+    #pdf-container {
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .pdf-page {
+      width: 100%;
+      display: block;
+      margin: 0;
+      padding: 0;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin: 0;
+      padding: 0;
+    }
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 14px;
+      z-index: 10;
+    }
+
+    #error {
+      display: none;
+      color: white;
+      padding: 40px 20px;
+      text-align: center;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+  </style>
 </head>
-<body style="margin:0;">
-<script>
-  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-    window.location.replace("portfolio.pdf");
-  } else {
-    document.write(
-      '<iframe src="portfolio.pdf" style="position:fixed;inset:0;width:100%;height:100%;border:0;"></iframe>'
-    );
-  }
-</script>
+
+<body>
+
+  <div id="loading">Loading portfolio...</div>
+  <div id="error">作品集加载失败，请刷新页面重试。</div>
+  <div id="pdf-container"></div>
+
+  <script type="module">
+    import * as pdfjsLib from
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+
+    const container = document.getElementById('pdf-container');
+    const loading = document.getElementById('loading');
+    const errorBox = document.getElementById('error');
+
+    async function renderPDF() {
+      try {
+        const pdf = await pdfjsLib.getDocument('portfolio.pdf').promise;
+
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+
+          const page = await pdf.getPage(pageNumber);
+
+          const baseViewport = page.getViewport({ scale: 1 });
+
+          const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+          const targetWidth = Math.min(
+            window.innerWidth * pixelRatio,
+            2400
+          );
+
+          const scale = targetWidth / baseViewport.width;
+
+          const viewport = page.getViewport({ scale });
+
+          const wrapper = document.createElement('div');
+          wrapper.className = 'pdf-page';
+
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+
+          canvas.width = Math.floor(viewport.width);
+          canvas.height = Math.floor(viewport.height);
+
+          wrapper.appendChild(canvas);
+          container.appendChild(wrapper);
+
+          await page.render({
+            canvasContext: context,
+            viewport: viewport
+          }).promise;
+        }
+
+        loading.style.display = 'none';
+
+      } catch (error) {
+        console.error(error);
+        loading.style.display = 'none';
+        errorBox.style.display = 'block';
+      }
+    }
+
+    renderPDF();
+  </script>
+
 </body>
 </html>
